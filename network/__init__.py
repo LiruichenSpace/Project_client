@@ -1,12 +1,11 @@
+# -*- coding:utf8 -*-
 import socket
 import pickle
 import struct
 
+import cv2
+import numpy as np
 
-def start_connection(ip_addr,port):
-    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    s.connect((ip_addr,port))
-    return s
 
 def stop_connection(s):
     s.close()
@@ -17,13 +16,17 @@ def send_object(s,obj):
     :param obj: 准备发送的对象
     :return: 无
     """
-    if not obj:
+    if obj is None:
         s.send(struct.pack('l', 0))
         return
-    data=pickle.dumps(obj)
-    data_len=struct.pack('l',len(data))
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 15]
+    result, imgencode = cv2.imencode('.jpg', obj, encode_param)
+    #imgencode=bytes(imgencode.to_string(),encoding='utf-8')
+    imgencode=np.array(imgencode).tostring()
+    print(len(imgencode))
+    data_len=struct.pack('l',len(imgencode))
     s.send(data_len)
-    s.send(data)
+    s.send(imgencode)
 def send_sample(s,obj):
     """
     :param s: socket对象

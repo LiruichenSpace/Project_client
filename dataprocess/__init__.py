@@ -5,6 +5,8 @@ import time
 import numpy as np
 import picamera
 from PIL import Image
+import dataprocess.dataCapture
+
 
 
 def start_camera():
