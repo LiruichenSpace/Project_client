@@ -2,6 +2,9 @@
 import datetime
 import logging
 import os
+import cv2
+import numpy as np
+
 
 def get_timestamp():
     return datetime.now().strftime('%y%m%d-%H%M%S')
@@ -21,3 +24,14 @@ def setup_logger(logger_name, root='./logs', level=logging.INFO, screen=False, t
         sh = logging.StreamHandler()
         sh.setFormatter(formatter)
         lg.addHandler(sh)
+
+def encode_jpeg(obj):
+    """
+    给定一个图像tensor，返回压缩后的jpeg格式字符串用于传输
+    :param obj:
+    :return:
+    """
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 15]
+    result, imgencode = cv2.imencode('.jpg', obj, encode_param)
+    # imgencode=bytes(imgencode.to_string(),encoding='utf-8')
+    return np.array(imgencode).tostring()

@@ -29,7 +29,7 @@ class captureBuffer():
         self.start = time.time()
 
     # def start_test(self):
-    #     file = open('../test/saved_frames.pkl', 'rb')
+    #     file = open('../test/saved_objs.pkl', 'rb')
     #     try:
     #         while not self.terminate:
     #             image = pickle.load(file)
@@ -47,18 +47,18 @@ class captureBuffer():
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
-            camera.framerate = 30
+            camera.framerate = 10
             time.sleep(2)
             self.start = time.time()
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
                 with self.pool_lock:
                     while len(self.pool) > self.pool_size:
-                        self.pool.pop()
+                        time.sleep(0.05)
                     self.pool.append(np.array(frame.array, dtype=np.uint8))
                     self.count = self.count + 1
                 rawFrame.seek(0)
                 rawFrame.truncate()
-                # time.sleep(0.05)
+                time.sleep(0.05)
                 if self.terminate:
                     print('terminate')
                     break

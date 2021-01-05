@@ -2,7 +2,7 @@
 import socket
 import pickle
 import struct
-
+import utils
 import cv2
 import numpy as np
 
@@ -19,10 +19,7 @@ def send_object(s,obj):
     if obj is None:
         s.send(struct.pack('l', 0))
         return
-    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 15]
-    result, imgencode = cv2.imencode('.jpg', obj, encode_param)
-    #imgencode=bytes(imgencode.to_string(),encoding='utf-8')
-    imgencode=np.array(imgencode).tostring()
+    imgencode=utils.encode_jpeg(obj)
     print(len(imgencode))
     data_len=struct.pack('l',len(imgencode))
     s.send(data_len)
@@ -34,7 +31,8 @@ def send_sample(s,obj):
     :return: 无
     """
     data=pickle.dumps(obj)
-    print(len(data))
+    #print(len(data))
+    print(data)
     data_len=struct.pack('l',-len(data))
     s.send(data_len)
     s.send(data)
