@@ -1,15 +1,21 @@
 # -*- coding:utf8 -*-
+import logging
 import threading
 import time
+import pickle
+import os
 
-# import cv2
+#import cv2
+from pathlib import Path
+
 import numpy as np
 import picamera
 from picamera.array import PiRGBArray
+from dataprocess.Sampler import TestSampler
 
 
 # 直接RGB解码可以获取到RGB格式，但是是（H，W，C）格式的tensor，需要进行调整
-
+import network
 
 
 class captureBuffer():
@@ -21,70 +27,75 @@ class captureBuffer():
     """
 
     def __init__(self):
-        self.pool_lock = threading.Lock()
-        self.pool = []
+        #self.pool_lock = threading.Lock()
+        #self.pool = []
         self.count = 0
-        self.pool_size = 5
+        #self.pool_size = 5
         self.terminate = False
         self.start = time.time()
-
-    # def start_test(self):
-    #     file = open('../test/saved_objs.pkl', 'rb')
-    #     try:
-    #         while not self.terminate:
-    #             image = pickle.load(file)
-    #             with self.pool_lock:
-    #                 while len(self.pool) >= self.pool_size:
-    #                     self.pool.pop()
-    #                 self.pool.append(image)
-    #     except EOFError:
-    #         pass
-    #     finally:
-    #         file.close()
-
-    def start_capture(self):
-        self.pool.clear()
+        self.logger=logging.getLogger('base')
+    def start_capture_no_bolck(self,sock):
+        sampler=TestSampler()
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
             camera.framerate = 10
             time.sleep(2)
             self.start = time.time()
+            cnt=0
+            start=time.time()
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
-                with self.pool_lock:
-                    while len(self.pool) > self.pool_size:
-                        time.sleep(0.05)
-                    self.pool.append(np.array(frame.array, dtype=np.uint8))
-                    self.count = self.count + 1
+                sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
+                network.send_object(sock, scaled)
+                for sample in sample_list:
+                    network.send_sample(sock, sample)
+                cnt = cnt + 1
+                if cnt%10:
+                    self.logger.info("sent {} frames in {} sec,fps:{}".format(cnt, time.time() - start,
+                                                                                 cnt / (time.time() - start)))
+                if cnt>200:
+                    break
+                self.logger.info(cnt)
+                self.count = self.count + 1
                 rawFrame.seek(0)
                 rawFrame.truncate()
-                time.sleep(0.05)
                 if self.terminate:
-                    print('terminate')
+                    self.logger.info('terminate')
                     break
-        print('test')
-
+    def create_datafile(self,file_path):
+        f_path=Path(file_path)
+        if not f_path.parent.exists():
+            f_path.parent.mkdir(parents=True)
+        sampler=TestSampler()
+        fp=open(file_path,'wb')
+        with picamera.PiCamera() as camera:
+            rawFrame = PiRGBArray(camera, (640, 480))
+            camera.resolution = (640, 480)
+            camera.framerate = 20
+            time.sleep(2)
+            self.start = time.time()
+            cnt=0
+            start=time.time()
+            for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
+                sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
+                pickle.dump(scaled,fp,-1)
+                for sample in sample_list:
+                    pickle.dump(sample,fp,-1)
+                cnt = cnt + 1
+                if cnt%10:
+                    self.logger.info("sent {} frames in {} sec,fps:{}".format(cnt, time.time() - start,
+                                                                                 cnt / (time.time() - start)))
+                if cnt>200:
+                    break
+                self.logger.info(cnt)
+                self.count = self.count + 1
+                rawFrame.seek(0)
+                rawFrame.truncate()
+                if self.terminate:
+                    self.logger.info('terminate')
+                    break
+        fp.close()
 
 
 if __name__ == '__main__':
-    # camera=picamera.PiCamera()
-    # camera.close()
-    buffer = captureBuffer()
-    # buffer.start_capture()
-    # plt.ion()
-    thread = threading.Thread(target=buffer.start_capture, args=())
-    # 不能带括号，直接用函数名调用，否则直接执行了
-    thread.setDaemon(True)
-    thread.start()
-    start = time.time()
-    while time.time() - buffer.start < 10:
-        with buffer.pool_lock:
-            if buffer.pool:
-                frame = buffer.pool.pop()
-                print(frame)
-                # plt.imshow(frame)
-                # plt.draw()
-                # plt.show()
-    buffer.terminate = True
-    print('Sent %d images in %d seconds at %.2ffps' % (
-        buffer.count, time.time() - buffer.start, buffer.count / (time.time() - buffer.start)))
+    pass

@@ -1,19 +1,26 @@
 # -*- coding:utf8 -*-
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+import argparse
+import logging
 import os
 import os.path as osp
+import pickle
 import threading
 import time
+from pathlib import Path
 
 import dataprocess
 import network
 from dataprocess.dataCapture import captureBuffer
 from network.Connection import connection
 from dataprocess.Sampler import TestSampler
+import utils
+
 
 def sample_thread(sock,capture_pool):
     sampler=TestSampler()
+    logger=logging.getLogger('base')
     cnt=0
     while cnt<20:
         with capture_pool.pool_lock:
@@ -23,32 +30,63 @@ def sample_thread(sock,capture_pool):
                 for sample in sample_list:
                     network.send_sample(sock,sample)
                 cnt=cnt+1
-                print(cnt)
+                logger.info(cnt)
             else:
                 time.sleep(0.02)
 
-def start_client(ip_addr,port):
-    print('start_client')
-    test_folder='./test_data_file'
-    conn=connection(ip_addr,port)
+def create_datafile(file_path):
+    logger = logging.getLogger('base')
+    logger.info('create_datafile')
+    capture_pool = captureBuffer()
+    capture_pool.create_datafile(file_path)
+    capture_pool.terminate = True
+
+def start_client_no_block(ip_addr,port):
+    logger = logging.getLogger('base')
+    logger.info('start_client')
+    conn = connection(ip_addr, port)
     conn.start_connection()
-    capture_pool=captureBuffer()
-    capture_thread=threading.Thread(target=capture_pool.start_capture,args=())
-    capture_thread.setDaemon(True)
-    capture_thread.start()
-    if not osp.exists(test_folder):
-        os.makedirs(test_folder)
-    sample_thread(conn.socket,capture_pool)
-    # for i in range(10):
-    #     #cv=dataprocess.get_cv_object(camera)
-    #     obj='test_obj'
-    #     network.send_sample(conn.socket,obj)
-    #     #pickle.dump(cv,osp.join(test_folder,'{}.pkl'.format(i)))
-    capture_pool.terminate=True
+    capture_pool = captureBuffer()
+    capture_pool.start_capture_no_bolck(conn.socket)
+    capture_pool.terminate = True
     conn.stop_connection()
 
+def start_client_with_file(ip_addr,port,file_path):
+    logger = logging.getLogger('base')
+    logger.info('start_client')
+    fp=open(file_path,'rb')
+    conn = connection(ip_addr, port)
+    conn.start_connection()
+    while True:
+        try:
+            data = pickle.load(fp)
+            if isinstance(data,dict):
+                network.send_sample(conn.socket,data)
+            else:
+                network.send_object(conn.socket,data)
+        except EOFError:
+            break
+    conn.stop_connection()
+    fp.close()
 
 if __name__ == '__main__':
-    start_client('192.168.137.1',11111)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--log_filename',type=str,default=None)
+    parser.add_argument('--out_file',type=str,default=None)
+    parser.add_argument('--in_file',type=str,default=None)
+    args=parser.parse_args()
+    if not (args.log_filename is None):
+        logger=utils.setup_logger('base',True,args.log_filename)
+    else:
+        logger = utils.setup_logger('base', False)
+    if not(args.in_file is None):
+        if Path(args.in_file).is_file():
+            start_client_with_file('192.168.137.1', 11111,args.in_file)
+        else:
+            logger.error(args.in_file + ' is not a valid file')
+    elif not(args.out_file is None):
+        create_datafile(args.out_file)
+    else:
+        start_client_no_block('192.168.137.1', 11111)
 
 

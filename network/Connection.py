@@ -2,6 +2,8 @@
 import socket
 import threading
 
+import network
+
 
 class connection():
     def __init__(self,ip_addr,port):
@@ -16,4 +18,5 @@ class connection():
         except :
             pass
     def stop_connection(self):
+        network.send_object(self.socket, None)
         self.socket.close()
