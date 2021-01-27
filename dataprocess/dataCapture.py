@@ -12,6 +12,7 @@ import numpy as np
 import picamera
 from picamera.array import PiRGBArray
 from dataprocess.Sampler import TestSampler
+from dataprocess.SRHandler import SRHandler
 
 
 # 直接RGB解码可以获取到RGB格式，但是是（H，W，C）格式的tensor，需要进行调整
@@ -34,18 +35,21 @@ class captureBuffer():
         self.terminate = False
         self.start = time.time()
         self.logger=logging.getLogger('base')
+        self.sampler = TestSampler()
     def start_capture_no_bolck(self,sock):
-        sampler=TestSampler()
+        self.srhandler=SRHandler(sock,self.sampler)
+        self.srhandler.setDaemon(True)
+        self.srhandler.start()#开启接收线程
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
-            camera.framerate = 10
+            camera.framerate = 20 #目前能够到达17fps左右的采集速度，推测此前瓶颈在于网络传输，而，
             time.sleep(2)
             self.start = time.time()
             cnt=0
             start=time.time()
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
-                sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
+                sample_list, scaled = self.sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
                 network.send_object(sock, scaled)
                 for sample in sample_list:
                     network.send_sample(sock, sample)

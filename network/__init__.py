@@ -11,6 +11,22 @@ import numpy as np
 def stop_connection(s):
     s.close()
 
+def recvall(sock, count):
+    """
+    由于recv函数可能不会返回等于参数大小的内容，需要不断接收确保接收到了足够长的内容
+    :param sock: socket对象
+    :param count: 需要接受的字节数
+    :return: 返回等于count大小的缓冲区
+    """
+    buf = b''  # buf是一个byte类型
+    while count:
+        # 接受TCP套接字的数据。数据以字符串形式返回，count指定要接收的最大数据量.
+        newbuf = sock.recv(count)
+        if not newbuf: return None
+        buf += newbuf
+        count -= len(newbuf)
+    return buf
+
 def send_object(s,obj):
     """
     :param s: socket对象
