@@ -26,7 +26,7 @@ def sample_thread(sock,capture_pool):
         with capture_pool.pool_lock:
             if capture_pool.pool:
                 sample_list,scaled=sampler.sample_and_filter(capture_pool.pool.pop())
-                network.send_object(sock,scaled)
+                network.send_jpeg(sock,scaled)
                 for sample in sample_list:
                     network.send_sample(sock,sample)
                 cnt=cnt+1
@@ -38,7 +38,8 @@ def create_datafile(file_path):
     logger = logging.getLogger('base')
     logger.info('create_datafile')
     capture_pool = captureBuffer()
-    capture_pool.create_datafile(file_path)
+    #capture_pool.create_datafile(file_path)
+    capture_pool.create_PSNR_testfile(file_path)
     capture_pool.terminate = True
 
 def start_client_no_block(ip_addr,port):
@@ -63,7 +64,7 @@ def start_client_with_file(ip_addr,port,file_path):
             if isinstance(data,dict):
                 network.send_sample(conn.socket,data)
             else:
-                network.send_object(conn.socket,data)
+                network.send_jpeg(conn.socket,data)
         except EOFError:
             break
     conn.stop_connection()
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     args=parser.parse_args()
     if not (args.log_filename is None):
         logger=utils.setup_logger('base',True,args.log_filename)
-    else:
+    else: 
         logger = utils.setup_logger('base', False)
     if not(args.in_file is None):
         if Path(args.in_file).is_file():

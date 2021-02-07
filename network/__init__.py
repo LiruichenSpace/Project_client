@@ -27,7 +27,7 @@ def recvall(sock, count):
         count -= len(newbuf)
     return buf
 
-def send_object(s,obj):
+def send_jpeg(s,obj):
     """
     :param s: socket对象
     :param obj: 准备发送的对象

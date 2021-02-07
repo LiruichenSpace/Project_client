@@ -18,5 +18,5 @@ class connection():
         except :
             pass
     def stop_connection(self):
-        network.send_object(self.socket, None)
+        network.send_jpeg(self.socket, None)
         self.socket.close()

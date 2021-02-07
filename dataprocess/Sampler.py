@@ -98,6 +98,8 @@ class TestSampler(BaseSampler):
                     GT.append(tmp)
                     sample = {'LQs': [utils.encode_jpeg(lr)for lr in LQs], 'GT': [utils.encode_jpeg(hr)for hr in GT]}
                     sample_list.append(sample)
+        self.cache0=None
+        self.cache1=None #每隔一帧才抽取一次样本
         return sample_list
     def sample_and_filter(self,data):
         """
@@ -107,7 +109,10 @@ class TestSampler(BaseSampler):
             sample_list: 包含样本的列表
             scaled: 缩放后的图像array
         """
-        scaled=cv2.resize(data,dsize=(0,0),fx=0.25,fy=0.25,interpolation=cv2.INTER_NEAREST)
+        scaled=cv2.resize(data,dsize=(0,0),fx=0.25,fy=0.25,interpolation=cv2.INTER_AREA)# 目前的AREA方法可以获得类似的效果，需要验证此缩放策略的结果如何
+        #print(data)
+        #scaled=utils.imresize_np(data,0.25,True)/255.
+        print(scaled.shape)
         sample_list=self.sampling_process(data,scaled)
         self.cache0 = self.cache1
         self.cache1 = (data,scaled)
