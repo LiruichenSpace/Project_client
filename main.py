@@ -35,6 +35,9 @@ def sample_thread(sock,capture_pool):
                 time.sleep(0.02)
 
 def create_datafile(file_path):
+    """
+    创建模拟服务端使用的pkl文件
+    """
     logger = logging.getLogger('base')
     logger.info('create_datafile')
     capture_pool = captureBuffer()
@@ -43,6 +46,9 @@ def create_datafile(file_path):
     capture_pool.terminate = True
 
 def start_client_no_block(ip_addr,port):
+    """
+    不使用多线程采集，单线程处理图像获取，直接使用多线程遇到了死锁问题
+    """
     logger = logging.getLogger('base')
     logger.info('start_client')
     conn = connection(ip_addr, port)
@@ -53,6 +59,12 @@ def start_client_no_block(ip_addr,port):
     conn.stop_connection()
 
 def start_client_with_file(ip_addr,port,file_path):
+    """
+    利用pkl文件来模拟服务端的数据采集
+    :param ip_addr: 服务端的ip地址
+    :param port: 服务器端口
+    :param file_path: 待使用的pkl文件位置
+    """
     logger = logging.getLogger('base')
     logger.info('start_client')
     fp=open(file_path,'rb')

@@ -65,8 +65,8 @@ class TestSampler(BaseSampler):
                     GT.append(tmp)
                     tmp = data[i * dx * 4:(i + 1) * dx * 4, j * dy * 4:(j + 1) * dy * 4, :]
                     GT.append(tmp)
-                    sample['LQs']=[utils.encode_jpeg(lr)for lr in LQs]
-                    sample['GT']=[utils.encode_jpeg(hr)for hr in GT]
+                    sample['LQs']=[utils.encode_img(lr) for lr in LQs]
+                    sample['GT']=[utils.encode_img(hr) for hr in GT]
         return [sample for _,sample in list(sample_list)]
     def sampling_process(self,data,scaled):
         """
@@ -96,7 +96,7 @@ class TestSampler(BaseSampler):
                     GT.append(tmp)
                     tmp = data[i * dx * 4:(i + 1) * dx * 4, j * dy * 4:(j + 1) * dy * 4, :]
                     GT.append(tmp)
-                    sample = {'LQs': [utils.encode_jpeg(lr)for lr in LQs], 'GT': [utils.encode_jpeg(hr)for hr in GT]}
+                    sample = {'LQs': [utils.encode_img(lr) for lr in LQs], 'GT': [utils.encode_img(hr) for hr in GT]}
                     sample_list.append(sample)
         self.cache0=None
         self.cache1=None #每隔一帧才抽取一次样本

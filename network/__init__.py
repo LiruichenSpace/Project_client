@@ -37,7 +37,7 @@ def send_jpeg(s,obj):
     if obj is None:
         s.send(struct.pack('l', 0))
         return
-    imgencode=utils.encode_jpeg(obj)
+    imgencode=utils.encode_img(obj)
     logger.info(len(imgencode))
     data_len=struct.pack('l',len(imgencode))
     s.send(data_len)

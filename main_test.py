@@ -32,20 +32,13 @@ def create_dataset_testfile(dir_path, out_path):
             plt.imshow(scaled[:,:,::-1])
             plt.draw()
             plt.show()
-            obj = {'origin': utils.encode_jpeg(img_data), 'scaled': utils.encode_jpeg(scaled)}
+            obj = {'origin': utils.encode_img(img_data), 'scaled': utils.encode_img(scaled)}
             pickle.dump(obj, fp, -1)
             for sample in sample_list:
                 pickle.dump(sample, fp, -1)
             cnt = cnt + 1
             print(cnt)
         fp.close()
-
-
-#def create_datafile(file_path,out_path):
-    #capture_pool = captureBuffer()
-    #capture_pool.create_datafile(file_path)
-    #capture_pool.create_dataset_testfile(file_path,out_path)
-    #capture_pool.terminate = True
 
 if __name__ == '__main__':
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"

@@ -119,7 +119,7 @@ class captureBuffer():
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
                 origin = np.array(frame.array, dtype=np.uint8)
                 sample_list, scaled = sampler.sample_and_filter(origin)
-                obj = {'origin': utils.encode_jpeg(origin), 'scaled': utils.encode_jpeg(scaled)}
+                obj = {'origin': utils.encode_img(origin), 'scaled': utils.encode_img(scaled)}
                 pickle.dump(obj, fp, -1)
                 for sample in sample_list:
                     pickle.dump(sample,fp,-1)
@@ -158,7 +158,7 @@ class captureBuffer():
                 #print(img_data.shape)
                 #print(img_data)
                 sample_list, scaled = sampler.sample_and_filter(img_data)
-                obj = {'origin': utils.encode_jpeg(img_data), 'scaled': utils.encode_jpeg(scaled)}
+                obj = {'origin': utils.encode_img(img_data), 'scaled': utils.encode_img(scaled)}
                 pickle.dump(obj, fp, -1)
                 for sample in sample_list:
                     pickle.dump(sample, fp, -1)
