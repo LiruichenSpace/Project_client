@@ -6,16 +6,19 @@ import cv2
 import utils
 from queue import PriorityQueue
 
+
 class BaseSampler():
     def __init__(self):
         self.sample_rate=1.
     def sample_and_filter(self,data):
         pass
 class TestSampler(BaseSampler):
-    def __init__(self):
+    def __init__(self,upper_rate=0.1,lower_rate=0):#设定最高和最低学习采样率
         super().__init__()
         #self.data_capturer=data_capturer
         self.sample_rate=0.05
+        self.upper_rate=upper_rate
+        self.lower_rate=lower_rate
         self.cache0=None
         self.cache1=None
         self.logger=logging.getLogger('base')
@@ -27,7 +30,8 @@ class TestSampler(BaseSampler):
         :return: 返回拉普拉斯卷积的结果，目前认为该值可以衡量细节的多少，用于筛选细节较多的样本
         """
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        result = cv2.Laplacian(gray, cv2.CV_64F).var()
+        #result = cv2.Laplacian(gray, cv2.CV_64F).var()
+        result = cv2.Laplacian(gray, -1).var()
         return self.softsign(result)
     def sampling_process_queue(self,data,scaled):
         """
@@ -36,12 +40,13 @@ class TestSampler(BaseSampler):
         :param scaled: 缩放（4倍）后的图像矩阵
         :return: 抽样得到的样本列表
         """
+        plt
         sample_list = PriorityQueue()
         sample_count=int(6*8*self.sample_rate+0.5)
         if self.cache0 is None or self.cache1 is None:#有三个样本即可抽样
             return sample_list
         newshape = scaled.shape
-        dx, dy = newshape[0] // 6, newshape[1] // 8
+        dx=dy = 20
         self.logger.info(dx,dy)
         for i in range(6):
             for j in range(8):
@@ -68,7 +73,7 @@ class TestSampler(BaseSampler):
                     sample['LQs']=[utils.encode_img(lr) for lr in LQs]
                     sample['GT']=[utils.encode_img(hr) for hr in GT]
         return [sample for _,sample in list(sample_list)]
-    def sampling_process(self,data,scaled):
+    def sampling_process(self,data,scaled,shape):
         """
         采用随机性策略抽取样本，缺少样本数量的确定性，但是可以很大程度加快处理速度，视情况采用
         :param 输入的原始图像矩阵，要求格式为（H，W，C）通道最好为RGB
@@ -78,11 +83,9 @@ class TestSampler(BaseSampler):
         sample_list = []
         if self.cache0 is None or self.cache1 is None:#有三个样本即可抽样
             return sample_list
-        newshape = scaled.shape
-        dx, dy = newshape[0] // 6, newshape[1] // 8
-        self.logger.info((dx,dy))
-        for i in range(6):
-            for j in range(8):
+        dx=dy=20
+        for i in range(shape[0]//dy):
+            for j in range(shape[1]//dx):
                 lr = scaled[i * dx:(i + 1) * dx, j * dy:(j + 1) * dy, :]
                 if np.random.rand()<self.sample_rate*self.get_weight(lr):
                     LQs=[]
@@ -96,7 +99,8 @@ class TestSampler(BaseSampler):
                     GT.append(tmp)
                     tmp = data[i * dx * 4:(i + 1) * dx * 4, j * dy * 4:(j + 1) * dy * 4, :]
                     GT.append(tmp)
-                    sample = {'LQs': [utils.encode_img(lr) for lr in LQs], 'GT': [utils.encode_img(hr) for hr in GT]}
+                    sample = {'LQs': [utils.encode_img(lr) for lr in LQs], 'GT': [utils.encode_img(hr) for hr in GT]
+                        ,'sample':True}
                     sample_list.append(sample)
         self.cache0=None
         self.cache1=None #每隔一帧才抽取一次样本
@@ -109,11 +113,16 @@ class TestSampler(BaseSampler):
             sample_list: 包含样本的列表
             scaled: 缩放后的图像array
         """
-        scaled=cv2.resize(data,dsize=(0,0),fx=0.25,fy=0.25,interpolation=cv2.INTER_AREA)# 目前的AREA方法可以获得类似的效果，需要验证此缩放策略的结果如何
-        #print(data)
-        #scaled=utils.imresize_np(data,0.25,True)/255.
-        print(scaled.shape)
-        sample_list=self.sampling_process(data,scaled)
+        h_n = int(80 * np.ceil(data.shape[0] / 80))
+        w_n = int(80 * np.ceil(data.shape[1] / 80))
+        #print(data.shape)
+        normed=np.zeros((h_n,w_n,3),dtype=np.float32)/255.
+        #print(normed.shape)
+        normed[0:data.shape[0],0:data.shape[1],:]=data
+        scaled=cv2.resize(normed,dsize=(0,0),fx=0.25,fy=0.25,interpolation=cv2.INTER_AREA)# 目前的AREA方法可以获得类似的效果，需要验证此缩放策略的结果如何
+        #此处无法直接使用，故采用AREA策略
+        #print(scaled.shape)
+        sample_list=self.sampling_process(data,scaled,(data.shape[0]//20,data.shape[1]//20))
         self.cache0 = self.cache1
         self.cache1 = (data,scaled)
         return sample_list,scaled

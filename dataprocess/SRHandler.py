@@ -20,4 +20,3 @@ class SRHandler(threading.Thread):
             self.update_SR(obj)
     def update_SR(self,obj):
         self.logger.info(obj)
-

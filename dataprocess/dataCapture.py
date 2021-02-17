@@ -46,16 +46,18 @@ class captureBuffer():
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
-            camera.framerate = 20 #目前能够到达17fps左右的采集速度，推测此前瓶颈在于网络传输，而，
+            camera.framerate = 20 #目前能够到达17fps左右的采集速度，推测此前瓶颈在于网络传输
+            shape=(640,480)
             time.sleep(2)
             self.start = time.time()
             cnt=0
             start=time.time()
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
                 sample_list, scaled = self.sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
-                network.send_jpeg(sock, scaled)
+                obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
+                network.send_obj(sock,obj)
                 for sample in sample_list:
-                    network.send_sample(sock, sample)
+                    network.send_obj(sock, sample)
                 cnt = cnt + 1
                 if cnt%10:
                     self.logger.info("sent {} frames in {} sec,fps:{}".format(cnt, time.time() - start,
@@ -79,13 +81,15 @@ class captureBuffer():
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
             camera.framerate = 20
+            shape=(640,480)
             time.sleep(2)
             self.start = time.time()
             cnt=0
             start=time.time()
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
                 sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
-                pickle.dump(scaled,fp,-1)
+                obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
+                pickle.dump(obj,fp,-1)
                 for sample in sample_list:
                     pickle.dump(sample,fp,-1)
                 cnt = cnt + 1
@@ -112,6 +116,7 @@ class captureBuffer():
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
             camera.framerate = 20
+            shape=(640,480)
             time.sleep(2)
             self.start = time.time()
             cnt=0
@@ -119,7 +124,13 @@ class captureBuffer():
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
                 origin = np.array(frame.array, dtype=np.uint8)
                 sample_list, scaled = sampler.sample_and_filter(origin)
-                obj = {'origin': utils.encode_img(origin), 'scaled': utils.encode_img(scaled)}
+
+                h_n = int(80 * np.ceil(origin.shape[0] / 80))
+                w_n = int(80 * np.ceil(origin.shape[1] / 80))
+                normed = np.zeros((h_n, w_n, 3), dtype=np.float32) / 255.
+                normed[0:origin.shape[0], 0:origin.shape[1], :] = origin
+
+                obj = {'origin': utils.encode_img(normed), 'scaled': utils.encode_img(scaled),'shape':shape}
                 pickle.dump(obj, fp, -1)
                 for sample in sample_list:
                     pickle.dump(sample,fp,-1)
@@ -151,14 +162,21 @@ class captureBuffer():
             for img in img_namelist:
                 img_path=os.path.join(dir_path,name,img)
                 img_data=cv2.imread(img_path,cv2.IMREAD_COLOR)
-                img_data=cv2.resize(img_data,(640,480))
+                shape=(img_data.shape[1],img_data.shape[0])
+                #img_data=cv2.resize(img_data,(640,480))
+
+                h_n = int(80 * np.ceil(img_data.shape[0] / 80))
+                w_n = int(80 * np.ceil(img_data.shape[1] / 80))
+                normed = np.zeros((h_n, w_n, 3), dtype=np.float32) / 255.
+                normed[0:img_data.shape[0], 0:img_data.shape[1], :] = img_data
+
                 plt.imshow(img_data)
                 plt.draw()
                 plt.show()
                 #print(img_data.shape)
                 #print(img_data)
                 sample_list, scaled = sampler.sample_and_filter(img_data)
-                obj = {'origin': utils.encode_img(img_data), 'scaled': utils.encode_img(scaled)}
+                obj = {'origin': utils.encode_img(img_data), 'scaled': utils.encode_img(scaled),'shape':shape}
                 pickle.dump(obj, fp, -1)
                 for sample in sample_list:
                     pickle.dump(sample, fp, -1)

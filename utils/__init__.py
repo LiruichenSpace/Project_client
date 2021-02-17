@@ -7,8 +7,8 @@ from datetime import datetime
 
 import cv2
 import numpy as np
-import torch
-
+#import torch
+ 
 
 def get_timestamp():
     return datetime.now().strftime('%y%m%d-%H%M%S')

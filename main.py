@@ -25,10 +25,12 @@ def sample_thread(sock,capture_pool):
     while cnt<20:
         with capture_pool.pool_lock:
             if capture_pool.pool:
-                sample_list,scaled=sampler.sample_and_filter(capture_pool.pool.pop())
-                network.send_jpeg(sock,scaled)
+                img=capture_pool.pool.pop()
+                sample_list,scaled=sampler.sample_and_filter(img)
+                obj={'img':utils.encode_img(scaled),'shape':img.shape,'sample':False}
+                network.send_obj(sock,obj)
                 for sample in sample_list:
-                    network.send_sample(sock,sample)
+                    network.send_obj(sock, sample)
                 cnt=cnt+1
                 logger.info(cnt)
             else:
@@ -41,8 +43,8 @@ def create_datafile(file_path):
     logger = logging.getLogger('base')
     logger.info('create_datafile')
     capture_pool = captureBuffer()
-    #capture_pool.create_datafile(file_path)
-    capture_pool.create_PSNR_testfile(file_path)
+    capture_pool.create_datafile(file_path)
+    #capture_pool.create_PSNR_testfile(file_path)
     capture_pool.terminate = True
 
 def start_client_no_block(ip_addr,port):
@@ -73,10 +75,7 @@ def start_client_with_file(ip_addr,port,file_path):
     while True:
         try:
             data = pickle.load(fp)
-            if isinstance(data,dict):
-                network.send_sample(conn.socket,data)
-            else:
-                network.send_jpeg(conn.socket,data)
+            network.send_obj(conn.socket,data)
         except EOFError:
             break
     conn.stop_connection()
@@ -101,5 +100,3 @@ if __name__ == '__main__':
         create_datafile(args.out_file)
     else:
         start_client_no_block('192.168.137.1', 11111)
-
-
