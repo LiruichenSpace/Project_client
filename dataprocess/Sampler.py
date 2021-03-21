@@ -30,9 +30,11 @@ class TestSampler(BaseSampler):
         :return: 返回拉普拉斯卷积的结果，目前认为该值可以衡量细节的多少，用于筛选细节较多的样本
         """
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        #result = cv2.Laplacian(gray, cv2.CV_64F).var()
-        result = cv2.Laplacian(gray, -1).var()
-        return self.softsign(result)
+        result = cv2.Laplacian(gray, cv2.CV_32F).var()
+        #result = cv2.Laplacian(gray, -1).var()
+        #self.logger.info(result)
+        #return self.softsign(result)
+        return result
     def sampling_process_queue(self,data,scaled):
         """
         采用优先级队列实现的版本，测试时有部分样本有很高的权重，但实际上是空白，所以该确定性策略是否合适需要验证
@@ -40,7 +42,6 @@ class TestSampler(BaseSampler):
         :param scaled: 缩放（4倍）后的图像矩阵
         :return: 抽样得到的样本列表
         """
-        plt
         sample_list = PriorityQueue()
         sample_count=int(6*8*self.sample_rate+0.5)
         if self.cache0 is None or self.cache1 is None:#有三个样本即可抽样
@@ -81,13 +82,14 @@ class TestSampler(BaseSampler):
         :return: 抽样得到的样本列表
         """
         sample_list = []
-        if self.cache0 is None or self.cache1 is None:#有三个样本即可抽样
-            return sample_list
+        #if self.cache0 is None or self.cache1 is None:
+            #return sample_list
         dx=dy=20
         for i in range(shape[0]//dy):
             for j in range(shape[1]//dx):
-                lr = scaled[i * dx:(i + 1) * dx, j * dy:(j + 1) * dy, :]
-                if np.random.rand()<self.sample_rate*self.get_weight(lr):
+                #lr = scaled[i * dx:(i + 1) * dx, j * dy:(j + 1) * dy, :]
+                if np.random.rand()<self.sample_rate:#*self.get_weight(lr):
+                    lr = scaled[i * dx:(i + 1) * dx, j * dy:(j + 1) * dy, :]
                     LQs=[]
                     GT=[]
                     tmp=self.cache0[1][i * dx:(i + 1) * dx, j * dy:(j + 1) * dy, :]
@@ -113,16 +115,20 @@ class TestSampler(BaseSampler):
             sample_list: 包含样本的列表
             scaled: 缩放后的图像array
         """
-        h_n = int(80 * np.ceil(data.shape[0] / 80))
-        w_n = int(80 * np.ceil(data.shape[1] / 80))
+        h_n = int(16 * np.ceil(data.shape[0] / 16))
+        w_n = int(16 * np.ceil(data.shape[1] / 16))
         #print(data.shape)
-        normed=np.zeros((h_n,w_n,3),dtype=np.float32)/255.
+        normed=np.zeros((h_n,w_n,3),dtype=np.float32)
         #print(normed.shape)
         normed[0:data.shape[0],0:data.shape[1],:]=data
         scaled=cv2.resize(normed,dsize=(0,0),fx=0.25,fy=0.25,interpolation=cv2.INTER_AREA)# 目前的AREA方法可以获得类似的效果，需要验证此缩放策略的结果如何
         #此处无法直接使用，故采用AREA策略
+        #scaled=utils.imresize_np(normed,1/4,True)
         #print(scaled.shape)
-        sample_list=self.sampling_process(data,scaled,(data.shape[0]//20,data.shape[1]//20))
+        sample_list=[]
+        if self.cache0 is not None and self.cache1 is not None:
+            sample_list=self.sampling_process(normed,scaled,(data.shape[0]//4,data.shape[1]//4))
         self.cache0 = self.cache1
-        self.cache1 = (data,scaled)
+        self.cache1 = (normed,scaled,(data.shape[0]//4,data.shape[1]//4))
+        data=None
         return sample_list,scaled

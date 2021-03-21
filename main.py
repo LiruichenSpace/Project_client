@@ -72,10 +72,24 @@ def start_client_with_file(ip_addr,port,file_path):
     fp=open(file_path,'rb')
     conn = connection(ip_addr, port)
     conn.start_connection()
+    cnt = 0
+    sampler=dataprocess.Sampler.TestSampler()
+    start = time.time()
     while True:
         try:
             data = pickle.load(fp)
-            network.send_obj(conn.socket,data)
+            data=utils.decode_jpeg(data)
+            sample_list, scaled = sampler.sample_and_filter(data)
+            obj = {'img': utils.encode_img(scaled), 'shape': data.shape, 'sample': False}
+            network.send_obj(conn.socket, obj)
+            for sample in sample_list:
+                network.send_obj(conn.socket, sample)
+            # TODO:考虑还有没有优化的策略
+            cnt = cnt + 1
+            if cnt % 10 == 0:
+                curr_time = time.time()
+                logger.info("sent {} frames in {} sec,fps:{}".format(cnt, curr_time - start,
+                                                                          cnt / (curr_time - start)))
         except EOFError:
             break
     conn.stop_connection()
@@ -93,10 +107,10 @@ if __name__ == '__main__':
         logger = utils.setup_logger('base', False)
     if not(args.in_file is None):
         if Path(args.in_file).is_file():
-            start_client_with_file('192.168.137.1', 11111,args.in_file)
+            start_client_with_file('192.168.0.100', 11111,args.in_file)
         else:
             logger.error(args.in_file + ' is not a valid file')
     elif not(args.out_file is None):
         create_datafile(args.out_file)
     else:
-        start_client_no_block('192.168.137.1', 11111)
+        start_client_no_block('192.168.0.100', 11111)

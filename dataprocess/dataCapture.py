@@ -46,25 +46,29 @@ class captureBuffer():
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
-            camera.framerate = 20 #目前能够到达17fps左右的采集速度，推测此前瓶颈在于网络传输
+            camera.framerate = 15 #目前能够到达17fps左右的采集速度，推测此前瓶颈在于网络传输
             shape=(640,480)
             time.sleep(2)
             self.start = time.time()
             cnt=0
-            start=time.time()
+            start=self.start
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
-                sample_list, scaled = self.sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
+                frame=np.array(frame.array, dtype=np.uint8)
+                sample_list, scaled = self.sampler.sample_and_filter(frame)
                 obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
                 network.send_obj(sock,obj)
                 for sample in sample_list:
                     network.send_obj(sock, sample)
+                #TODO:考虑还有没有优化的策略
                 cnt = cnt + 1
-                if cnt%10:
-                    self.logger.info("sent {} frames in {} sec,fps:{}".format(cnt, time.time() - start,
-                                                                                 cnt / (time.time() - start)))
+                if cnt%10==0:
+                    curr_time=time.time()
+                    self.logger.info("sent {} frames in {} sec,fps:{}".format(cnt, curr_time - start,
+                                                                                 cnt / (curr_time - start)))
                 if cnt>200:
+                    self.logger.info('process end')
                     break
-                self.logger.info(cnt)
+                #self.logger.info(cnt)
                 self.count = self.count + 1
                 rawFrame.seek(0)
                 rawFrame.truncate()
@@ -72,6 +76,10 @@ class captureBuffer():
                     self.logger.info('terminate')
                     break
     def create_datafile(self,file_path):
+        """
+        create the original captured frames,encoded in png
+        :param file_path: the path of the data pkl file
+        """
         f_path=Path(file_path)
         if not f_path.parent.exists():
             f_path.parent.mkdir(parents=True)
@@ -80,26 +88,38 @@ class captureBuffer():
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
             camera.resolution = (640, 480)
-            camera.framerate = 20
+            camera.framerate = 15
             shape=(640,480)
             time.sleep(2)
             self.start = time.time()
             cnt=0
             start=time.time()
+            prev_cnt=0
+            len_sum=0
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
-                sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
-                obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
-                pickle.dump(obj,fp,-1)
-                for sample in sample_list:
-                    pickle.dump(sample,fp,-1)
+                #sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
+                #self.logger.info('len of sample list is {}'.format(len(sample_list)))
+                #len_sum=len_sum+len(sample_list)
+                #obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
+                frame=np.array(frame.array, dtype=np.uint8)
+                #frame=utils.imresize_np(frame,1/4,True)
+                #pickle.dump(obj,fp,-1)
+                pickle.dump(utils.encode_img(frame),fp,-1)
+                #for sample in sample_list:
+                    #pickle.dump(sample,fp,-1)
+                    #self.logger.info('send sample')
                 cnt = cnt + 1
-                if cnt%10:
+                self.count = self.count + 1
+                if cnt%10==0:
+                    self.logger.info('total sample num is:{}'.format(len_sum))
                     self.logger.info("sent {} frames in {} sec,fps:{}".format(cnt, time.time() - start,
                                                                                  cnt / (time.time() - start)))
-                if cnt>200:
+                    start=time.time()
+                    cnt=0
+                    len_sum=0
+                if self.count>200:
                     break
-                self.logger.info(cnt)
-                self.count = self.count + 1
+                #self.logger.info(cnt)
                 rawFrame.seek(0)
                 rawFrame.truncate()
                 if self.terminate:
@@ -107,6 +127,11 @@ class captureBuffer():
                     break
         fp.close()
     def create_PSNR_testfile(self,file_path):
+        """
+        这部分或许可以直接在服务端验证
+        :param file_path:
+        :return:
+        """
         f_path=Path(file_path)
         if not f_path.parent.exists():
             f_path.parent.mkdir(parents=True)
