@@ -83,7 +83,7 @@ class captureBuffer():
         f_path=Path(file_path)
         if not f_path.parent.exists():
             f_path.parent.mkdir(parents=True)
-        sampler=TestSampler()
+        sampler=TestSampler(sample_len=7)
         fp=open(file_path,'wb')
         with picamera.PiCamera() as camera:
             rawFrame = PiRGBArray(camera, (640, 480))
@@ -97,17 +97,21 @@ class captureBuffer():
             prev_cnt=0
             len_sum=0
             for frame in camera.capture_continuous(rawFrame, 'rgb', use_video_port=True):
-                #sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
-                #self.logger.info('len of sample list is {}'.format(len(sample_list)))
-                #len_sum=len_sum+len(sample_list)
-                #obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
-                frame=np.array(frame.array, dtype=np.uint8)
-                #frame=utils.imresize_np(frame,1/4,True)
-                #pickle.dump(obj,fp,-1)
-                pickle.dump(utils.encode_img(frame),fp,-1)
-                #for sample in sample_list:
-                    #pickle.dump(sample,fp,-1)
-                    #self.logger.info('send sample')
+                frame = np.array(frame.array, dtype=np.uint8)
+                #frame = cv2.resize(frame, dsize=(0, 0), fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA)
+                # frame=utils.imresize_np(frame,1/4,True)
+                pickle.dump(utils.encode_img(frame), fp, -1)
+
+                # sample_list, scaled = sampler.sample_and_filter(np.array(frame.array, dtype=np.uint8))
+                # #self.logger.info('len of sample list is {}'.format(len(sample_list)))
+                # len_sum=len_sum+len(sample_list)
+                # obj={'img':utils.encode_img(scaled),'shape':shape,'sample':False}
+                # pickle.dump(obj,fp,-1)
+                #
+                # for sample in sample_list:
+                #     pickle.dump(sample,fp,-1)
+                #     # self.logger.info('send sample')
+
                 cnt = cnt + 1
                 self.count = self.count + 1
                 if cnt%10==0:
